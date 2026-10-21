@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aiven Kafka Seminar Demo - Gửi Tin Nhắn & Giả Lập Đồng Thời</title>
+  <style>
+    :root {
+      --bg-dark: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f1f5f9;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --accent-orange: #ea580c;
+      --accent-green: #059669;
+      --accent-purple: #7c3aed;
+      --accent-cyan: #0284c7;
+      --danger: #dc2626;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 16px 24px;
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f97316, #ef4444);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .brand p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid var(--border);
+    }
+
+    .badge.connected {
+      background: #ecfdf5;
+      border-color: #6ee7b7;
+      color: #047857;
+    }
+
+    .badge.simulation {
+      background: #fff7ed;
+      border-color: #fdba74;
+      color: #c2410c;
+    }
+
+    .badge.disconnected {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #b91c1c;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 15px;
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+      background: var(--primary);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-outline {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-card-hover);
+    }
+
+    .btn-burst {
+      background: linear-gradient(135deg, #f97316, #dc2626);
+      font-size: 14px;
+      padding: 12px 18px;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-burst:hover {
+      background: linear-gradient(135deg, #ea580c, #b91c1c);
+    }
+
+    .btn-sim {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    }
+
+    /* CONFIG PANEL */
+    .config-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      display: none;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+    }
+
+    .config-panel.open {
+      display: block;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      padding: 8px 11px;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    /* MAIN 3-COLUMN PIPELINE */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 1200px) {
+      .pipeline-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-main);
+    }
+
+    /* STATS ROW */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .metric-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .metric-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .metric-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* PARTITIONS VISUALIZER */
+    .partition-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .partition-item {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .partition-item.active-flash {
+      border-color: var(--accent-orange);
+      background: #fff7ed;
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.25);
+    }
+
+    .partition-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .progress-track {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #06b6d4);
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    /* CONSUMERS GRID */
+    .consumer-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .consumer-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .consumer-box.active-flash {
+      border-color: var(--accent-green);
+      background: #ecfdf5;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .consumer-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #047857;
+      margin-bottom: 4px;
+    }
+
+    .consumer-count {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .consumer-part {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* LOG STREAMS */
+    .log-stream {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      height: 360px;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid var(--primary);
+      color: var(--text-main);
+      line-height: 1.4;
+      animation: fadeIn 0.15s ease;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .log-item.burst {
+      border-left-color: var(--accent-orange);
+    }
+
+    .log-item.consumed {
+      border-left-color: var(--accent-green);
+    }
+
+    .log-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .tag.p0 { background: #dbeafe; color: #1d4ed8; }
+    .tag.p1 { background: #f3e8ff; color: #7e22ce; }
+    .tag.p2 { background: #ffedd5; color: #c2410c; }
+
+    .quick-burst-btns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-logo">K</div>
+      <div>
+        <h1>Aiven Apache Kafka — Seminar Live Demo</h1>
+        <p>Gửi tin nhắn đơn & Giả lập bắn đồng thời nhiều tin nhắn (Concurrent Multi-Producer -> Partitions -> Consumer Group)</p>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div id="connectionBadge" class="badge disconnected">
+        <span class="dot"></span>
+        <span id="connectionText">Chưa kết nối</span>
+      </div>
+      <div class="badge">
+        Topic: <strong id="topicLabel">seminar-messages-demo</strong> (<span id="partitionCountLabel">3</span> Partitions)
+      </div>
+      <button class="btn btn-outline" onclick="toggleConfigPanel()">⚙️ Cấu hình Aiven Kafka</button>
+      <button class="btn btn-sim" onclick="connectKafka('simulation')">⚡ Chạy ngay (Chế độ Mô phỏng)</button>
+    </div>
+  </header>
+
+  <!-- AIVEN CONFIGURATION PANEL -->
+  <section id="configPanel" class="config-panel">
+    <div class="card-header">
+      <div class="card-title">🔌 Kết nối tới dịch vụ Aiven Apache Kafka</div>
+      <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="toggleConfigPanel()">Đóng</button>
+    </div>
+    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+      Bạn có thể đặt 3 file chứng chỉ (<code>ca.pem</code>, <code>service.cert</code>, <code>service.key</code>) vào thư mục <code>./certs/</code> và sửa file <code>.env</code>, <strong>HOẶC</strong> chọn trực tiếp 3 file từ máy tính ở bên dưới để kết nối ngay lập tức:
+    </p>
+
+    <div class="config-grid">
+      <div class="form-group">
+        <label>Aiven Service URI (Host:Port)</label>
+        <input type="text" id="cfgBroker" placeholder="kafka-xxxx-project.aivencloud.com:12345" />
+      </div>
+      <div class="form-group">
+        <label>Phương thức xác thực</label>
+        <select id="cfgAuthMethod" onchange="onAuthMethodChange()">
+          <option value="ssl">SSL Certificates (ca.pem, service.cert, service.key)</option>
+          <option value="sasl">SASL_SSL (Username + Password + ca.pem)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tên Topic trên Aiven</label>
+        <input type="text" id="cfgTopic" value="seminar-messages-demo" />
+      </div>
+      <div class="form-group">
+        <label>Số Partitions & Số Consumers</label>
+        <select id="cfgPartitions">
+          <option value="2" selected>2 Partitions / 2 Consumers (Chuẩn Aiven Free Tier)</option>
+          <option value="3">3 Partitions / 3 Consumers</option>
+          <option value="4">4 Partitions / 4 Consumers</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SSL FILE INPUTS -->
+    <div id="sslInputs" class="config-grid" style="margin-top: 12px;">
+      <div class="form-group">
+        <label>1. File CA Certificate (ca.pem) - Tùy chọn nếu đã có trong ./certs</label>
+        <input type="file" id="fileCa" accept=".pem,.crt,.cer" />
+      </div>
+      <div class="form-group">
+        <label>2. File Access Certificate (service.cert)</label>
+        <input type="file" id="fileCert" accept=".cert,.crt,.pem" />
+      </div>
+      <div class="form-group">
+        <label>3. File Access Key (service.key)</label>
+        <input type="file" id="fileKey" accept=".key,.pem" />
+      </div>
+    </div>
+
+    <!-- SASL INPUTS -->
+    <div id="saslInputs" class="config-grid" style="margin-top: 12px; display: none;">
+      <div class="form-group">
+        <label>SASL Username (mặc định: avnadmin)</label>
+        <input type="text" id="cfgSaslUser" value="avnadmin" />
+      </div>
+      <div class="form-group">
+        <label>SASL Password</label>
+        <input type="password" id="cfgSaslPass" placeholder="Nhập mật khẩu từ Aiven..." />
+      </div>
+      <div class="form-group">
+        <label>SASL Mechanism</label>
+        <select id="cfgSaslMech">
+          <option value="scram-sha-256">SCRAM-SHA-256</option>
+          <option value="scram-sha-512">SCRAM-SHA-512</option>
+          <option value="plain">PLAIN</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
+      <button id="btnConnectAiven" class="btn" onclick="connectKafka('aiven')">🚀 Kết nối Aiven Cloud</button>
+      <button class="btn btn-sim" onclick="connectKafka('simulation')">⚡ Dùng chế độ Mô phỏng (Không cần Cert)</button>
+      <span id="connectErrorMsg" style="font-size: 12px; color: #f87171;"></span>
+    </div>
+  </section>
+
+  <!-- MAIN 3-COLUMN KAFKA PIPELINE -->
+  <main class="pipeline-grid">
+    
+    <!-- COLUMN 1: PRODUCERS -->
+    <div>
+      <!-- SINGLE MESSAGE CARD -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📤 1. Gửi 1 Tin Nhắn Đơn Lẻ</div>
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>Người gửi (Producer Instance)</label>
+          <select id="singleSender">
+            <option value="Producer-Web-1">Producer-Web-1</option>
+            <option value="Producer-Web-2">Producer-Web-2</option>
+            <option value="Producer-Mobile-App">Producer-Mobile-App</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>Nội dung tin nhắn</label>
+          <input type="text" id="singleContent" value="Xin chào Aiven Kafka! Đây là tin nhắn thử nghiệm." />
+        </div>
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label>Message Key (Để trống = tự động chia đều Partition)</label>
+          <input type="text" id="singleKey" placeholder="VD: order-123 (tùy chọn)" />
+        </div>
+        <button class="btn" style="width: 100%;" onclick="sendSingleMessage()">📨 Gửi 1 Tin Nhắn</button>
+      </div>
+
+      <!-- CONCURRENT BURST SIMULATOR CARD -->
+      <div class="card" style="border-color: #fdba74;">
+        <div class="card-header">
+          <div class="card-title" style="color: #ea580c;">⚡ 2. Giả Lập Gửi Nhiều Tin Nhắn Cùng Lúc</div>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+          Mô phỏng nhiều Producers đồng thời bắn một lượng lớn tin nhắn cùng 1 thời điểm (<code>Promise.all</code>) vào Kafka để kiểm chứng khả năng chịu tải & chia Partition.
+        </p>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>Số lượng tin nhắn bắn cùng lúc: <strong id="burstCountLabel" style="color: #ea580c;">30 tin nhắn</strong></label>
+          <input type="range" id="burstCount" min="5" max="200" step="5" value="30" oninput="document.getElementById('burstCountLabel').innerText = this.value + ' tin nhắn'" />
+        </div>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>Số lượng Producers gửi song song cùng lúc</label>
+          <select id="burstProducers">
+            <option value="3">3 Producers song song</option>
+            <option value="5" selected>5 Producers song song</option>
+            <option value="10">10 Producers song song</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>Cơ chế bắn đồng thời</label>
+          <select id="burstMode">
+            <option value="parallel_requests" selected>Song song độc lập (Promise.all - Nhiều Request cùng lúc)</option>
+            <option value="single_batch">Gom thành 1 Batch lớn (High-Throughput Batch)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label>Nội dung tiền tố (Để trống = tạo sự kiện thực tế ngẫu nhiên)</label>
+          <input type="text" id="burstPrefix" placeholder="VD: Xử lý đơn hàng FlashSale..." />
+        </div>
+
+        <button id="btnBurstMain" class="btn btn-burst" onclick="sendConcurrentBurst()">
+          🚀 BẮN ĐỒNG THỜI NGAY
+        </button>
+
+        <div class="quick-burst-btns">
+          <button class="btn btn-outline" onclick="sendConcurrentBurst(15)">⚡ Bắn 15 tin</button>
+          <button class="btn btn-outline" onclick="sendConcurrentBurst(50)">🔥 Bắn 50 tin</button>
+          <button class="btn btn-outline" onclick="sendConcurrentBurst(100)">💥 Bắn 100 tin</button>
+        </div>
+
+        <!-- Kết quả đợt bắn gần nhất -->
+        <div id="burstResultBox" style="margin-top: 12px; padding: 10px; border-radius: 8px; background: #ecfdf5; border: 1px solid #6ee7b7; font-size: 12px; display: none;">
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMN 2: KAFKA BROKER & PARTITIONS -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🗂️ Aiven Kafka Broker & Partitions</div>
+        <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="clearLogs()">Xóa nhật ký</button>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-box">
+          <div id="totalProducedVal" class="metric-val">0</div>
+          <div class="metric-lbl">Tin nhắn đã gửi</div>
+        </div>
+        <div class="metric-box">
+          <div id="lastThroughputVal" class="metric-val">0</div>
+          <div class="metric-lbl">Tốc độ (msg/giây)</div>
+        </div>
+        <div class="metric-box">
+          <div id="avgLatencyVal" class="metric-val">0 ms</div>
+          <div class="metric-lbl">Độ trễ Broker</div>
+        </div>
+      </div>
+
+      <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">
+        PHÂN BỔ TIN NHẮN VÀO CÁC PARTITIONS:
+      </div>
+      <div id="partitionContainer" class="partition-list">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">
+        NHẬT KÝ PRODUCER GỬI LÊN TOPIC (REAL-TIME):
+      </div>
+      <div id="producerStream" class="log-stream">
+        <div style="color: var(--text-muted); text-align: center; margin-top: 40px;">
+          Chưa có tin nhắn nào được gửi. Hãy bấm gửi ở cột bên trái!
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMN 3: CONSUMER GROUP WORKERS -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚙️ Consumer Group (Xử Lý Phân Tán)</div>
+        <span class="badge" style="font-size: 11px;">Group: seminar-consumer-group</span>
+      </div>
+
+      <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">
+        CÁC CONSUMER ĐANG CHẠY SONG SONG:
+      </div>
+      <div id="consumerContainer" class="consumer-cards">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">
+        NHẬT KÝ CONSUMER NHẬN & XỬ LÝ TIN NHẮN (REAL-TIME):
+      </div>
+      <div id="consumerStream" class="log-stream">
+        <div style="color: var(--text-muted); text-align: center; margin-top: 40px;">
+          Đang chờ nhận tin nhắn từ các Partitions...
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let totalProduced = 0;
+    let totalConsumed = 0;
+    let partitionCounts = { 0: 0, 1: 0, 2: 0 };
+    let consumerCounts = { 'Consumer-1': 0, 'Consumer-2': 0, 'Consumer-3': 0 };
+    let numPartitions = 3;
+    let producerLogEmpty = true;
+    let consumerLogEmpty = true;
+
+    function initPartitionAndConsumerUI(parts = 3) {
+      numPartitions = parts;
+      const pContainer = document.getElementById('partitionContainer');
+      pContainer.innerHTML = '';
+      for (let p = 0; p < parts; p++) {
+        if (partitionCounts[p] === undefined) partitionCounts[p] = 0;
+        pContainer.innerHTML += `
+          <div id="partBox-${p}" class="partition-item">
+            <div class="partition-top">
+              <span>Partition ${p}</span>
+              <span id="partText-${p}">${partitionCounts[p]} tin nhắn (0%)</span>
+            </div>
+            <div class="progress-track">
+              <div id="partBar-${p}" class="progress-fill"></div>
+            </div>
+          </div>
+        `;
+      }
+
+      const cContainer = document.getElementById('consumerContainer');
+      cContainer.innerHTML = '';
+      for (let c = 1; c <= parts; c++) {
+        const cid = `Consumer-${c}`;
+        if (consumerCounts[cid] === undefined) consumerCounts[cid] = 0;
+        cContainer.innerHTML += `
+          <div id="consBox-${cid}" class="consumer-box">
+            <div class="consumer-name">🟢 ${cid}</div>
+            <div id="consCount-${cid}" class="consumer-count">${consumerCounts[cid]}</div>
+            <div class="consumer-part">Đảm nhận: Partition ${c - 1}</div>
+          </div>
+        `;
+      }
+    }
+
+    function updatePartitionBars() {
+      const sum = Object.values(partitionCounts).reduce((a, b) => a + b, 0) || 1;
+      for (let p = 0; p < numPartitions; p++) {
+        const count = partitionCounts[p] || 0;
+        const pct = Math.round((count / sum) * 100);
+        const textEl = document.getElementById(`partText-${p}`);
+        const barEl = document.getElementById(`partBar-${p}`);
+        if (textEl) textEl.innerText = `${count} tin nhắn (${pct}%)`;
+        if (barEl) barEl.style.width = `${pct}%`;
+      }
+    }
+
+    function flashElement(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('active-flash');
+      setTimeout(() => el.classList.remove('active-flash'), 350);
+    }
+
+    function toggleConfigPanel() {
+      document.getElementById('configPanel').classList.toggle('open');
+    }
+
+    function onAuthMethodChange() {
+      const method = document.getElementById('cfgAuthMethod').value;
+      document.getElementById('sslInputs').style.display = method === 'ssl' ? 'grid' : 'none';
+      document.getElementById('saslInputs').style.display = method === 'sasl' ? 'grid' : 'none';
+    }
+
+    function readFileAsText(fileInput) {
+      return new Promise((resolve) => {
+        if (!fileInput.files || !fileInput.files[0]) return resolve(null);
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsText(fileInput.files[0]);
+      });
+    }
+
+    async function connectKafka(mode) {
+      const errEl = document.getElementById('connectErrorMsg');
+      errEl.innerText = 'Đang kết nối...';
+
+      const broker = document.getElementById('cfgBroker').value;
+      const authMethod = document.getElementById('cfgAuthMethod').value;
+      const topic = document.getElementById('cfgTopic').value;
+      const partitions = parseInt(document.getElementById('cfgPartitions').value, 10) || 3;
+      const saslUsername = document.getElementById('cfgSaslUser').value;
+      const saslPassword = document.getElementById('cfgSaslPass').value;
+      const saslMechanism = document.getElementById('cfgSaslMech').value;
+
+      const caPemContent = await readFileAsText(document.getElementById('fileCa'));
+      const certContent = await readFileAsText(document.getElementById('fileCert'));
+      const keyContent = await readFileAsText(document.getElementById('fileKey'));
+
+      try {
+        const res = await fetch('/api/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode,
+            broker,
+            authMethod,
+            topic,
+            partitions,
+            numConsumers: partitions,
+            saslUsername,
+            saslPassword,
+            saslMechanism,
+            caPemContent,
+            certContent,
+            keyContent,
+          }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          errEl.innerText = '❌ ' + data.error;
+          return;
+        }
+        errEl.innerText = '';
+        updateStatusUI(data.status);
+        document.getElementById('configPanel').classList.remove('open');
+      } catch (err) {
+        errEl.innerText = '❌ Lỗi kết nối: ' + err.message;
+      }
+    }
+
+    function updateStatusUI(status) {
+      const badge = document.getElementById('connectionBadge');
+      const text = document.getElementById('connectionText');
+      document.getElementById('topicLabel').innerText = status.topic;
+      document.getElementById('partitionCountLabel').innerText = status.partitions;
+
+      if (status.broker) {
+        document.getElementById('cfgBroker').value = status.broker;
+      }
+
+      if (status.isConnected && status.connectionMode === 'aiven') {
+        badge.className = 'badge connected';
+        text.innerText = `Đã kết nối Aiven (${status.broker})`;
+        document.getElementById('configPanel').classList.remove('open');
+      } else if (status.isConnected && status.connectionMode === 'simulation') {
+        badge.className = 'badge simulation';
+        text.innerText = 'Chế độ Mô phỏng (Sẵn sàng Demo)';
+        document.getElementById('configPanel').classList.remove('open');
+      } else {
+        badge.className = 'badge disconnected';
+        text.innerText = 'Chưa kết nối Aiven';
+        document.getElementById('configPanel').classList.add('open');
+      }
+
+      if (status.partitions !== numPartitions) {
+        initPartitionAndConsumerUI(status.partitions);
+      }
+    }
+
+    async function sendSingleMessage() {
+      const sender = document.getElementById('singleSender').value;
+      const content = document.getElementById('singleContent').value;
+      const key = document.getElementById('singleKey').value;
+
+      const res = await fetch('/api/send-single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender, content, key }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        alert(data.error + '\n\nMẹo: Bạn có thể bấm nút "⚡ Chạy ngay (Chế độ Mô phỏng)" ở góc trên nếu chưa tải chứng chỉ Aiven!');
+      }
+    }
+
+    async function sendConcurrentBurst(overrideCount) {
+      const count = overrideCount || parseInt(document.getElementById('burstCount').value, 10) || 30;
+      const virtualProducers = parseInt(document.getElementById('burstProducers').value, 10) || 5;
+      const sendMode = document.getElementById('burstMode').value;
+      const customPrefix = document.getElementById('burstPrefix').value;
+
+      const btn = document.getElementById('btnBurstMain');
+      btn.disabled = true;
+      btn.innerText = `⏳ Đang bắn đồng thời ${count} tin nhắn...`;
+
+      try {
+        const res = await fetch('/api/send-concurrent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ count, virtualProducers, sendMode, customPrefix }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          alert(data.error + '\n\nMẹo: Bạn có thể bấm nút "⚡ Chạy ngay (Chế độ Mô phỏng)" ở góc trên nếu chưa tải chứng chỉ Aiven!');
+        } else {
+          const box = document.getElementById('burstResultBox');
+          box.style.display = 'block';
+          box.innerHTML = `
+            <div style="color: #047857; font-weight: 700; margin-bottom: 4px;">
+              ✅ Hoàn tất đợt bắn #${data.batchId} (${data.totalMessages} tin nhắn đồng thời)
+            </div>
+            <div>⏱️ Tổng thời gian: <strong>${data.elapsedMs} ms</strong> | 🚀 Tốc độ: <strong>${data.throughputPerSec} msg/giây</strong></div>
+          `;
+          document.getElementById('lastThroughputVal').innerText = data.throughputPerSec;
+        }
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '🚀 BẮN ĐỒNG THỜI NGAY';
+      }
+    }
+
+    function appendProducerLog(ev) {
+      const container = document.getElementById('producerStream');
+      if (producerLogEmpty) {
+        container.innerHTML = '';
+        producerLogEmpty = false;
+      }
+
+      totalProduced++;
+      document.getElementById('totalProducedVal').innerText = totalProduced;
+      if (ev.latencyMs) {
+        document.getElementById('avgLatencyVal').innerText = ev.latencyMs + ' ms';
+      }
+
+      if (ev.partition !== 'Multi') {
+        partitionCounts[ev.partition] = (partitionCounts[ev.partition] || 0) + 1;
+        updatePartitionBars();
+        flashElement(`partBox-${ev.partition}`);
+      }
+
+      const item = document.createElement('div');
+      item.className = 'log-item ' + (ev.type === 'CONCURRENT_BURST' ? 'burst' : '');
+      const pTagClass = `p${Number(ev.partition) % 3}`;
+      item.innerHTML = `
+        <div class="log-meta">
+          <span><strong>${ev.sender}</strong> • ${ev.id}</span>
+          <span><span class="tag ${pTagClass}">Partition ${ev.partition}</span> Offset #${ev.offset} (${ev.latencyMs || 1}ms)</span>
+        </div>
+        <div>${ev.content}</div>
+      `;
+      container.prepend(item);
+      while (container.children.length > 80) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    function appendConsumerLog(ev) {
+      const container = document.getElementById('consumerStream');
+      if (consumerLogEmpty) {
+        container.innerHTML = '';
+        consumerLogEmpty = false;
+      }
+
+      totalConsumed++;
+      consumerCounts[ev.workerId] = (consumerCounts[ev.workerId] || 0) + 1;
+      const countEl = document.getElementById(`consCount-${ev.workerId}`);
+      if (countEl) countEl.innerText = consumerCounts[ev.workerId];
+      flashElement(`consBox-${ev.workerId}`);
+
+      const item = document.createElement('div');
+      item.className = 'log-item consumed';
+      const pTagClass = `p${Number(ev.partition) % 3}`;
+      item.innerHTML = `
+        <div class="log-meta">
+          <span style="color: #047857; font-weight: 700;">⚙️ ${ev.workerId}</span>
+          <span><span class="tag ${pTagClass}">Partition ${ev.partition}</span> Offset #${ev.offset} • E2E: ${ev.e2eLatencyMs}ms</span>
+        </div>
+        <div>Từ <strong>${ev.payload?.sender || 'Producer'}</strong>: ${ev.payload?.content || ''}</div>
+      `;
+      container.prepend(item);
+      while (container.children.length > 80) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    function clearLogs() {
+      document.getElementById('producerStream').innerHTML = '';
+      document.getElementById('consumerStream').innerHTML = '';
+      producerLogEmpty = true;
+      consumerLogEmpty = true;
+    }
+
+    // Khởi tạo giao diện ban đầu
+    initPartitionAndConsumerUI(3);
+
+    // Lắng nghe luồng sự kiện Server-Sent Events (SSE)
+    const evtSource = new EventSource('/api/stream');
+    evtSource.addEventListener('status', (e) => {
+      updateStatusUI(JSON.parse(e.data));
+    });
+    evtSource.addEventListener('message_produced', (e) => {
+      appendProducerLog(JSON.parse(e.data));
+    });
+    evtSource.addEventListener('message_consumed', (e) => {
+      appendConsumerLog(JSON.parse(e.data));
+    });
+    evtSource.addEventListener('burst_completed', (e) => {
+      const data = JSON.parse(e.data);
+      document.getElementById('lastThroughputVal').innerText = data.throughputPerSec;
+    });
+  </script>
+</body>
+</html>
