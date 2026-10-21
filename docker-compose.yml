@@ -1,0 +1,12 @@
+services:
+  aiven-kafka-demo:
+    build: .
+    image: aiven-kafka-seminar-demo:latest
+    container_name: aiven-kafka-demo
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./certs:/app/certs:ro
+    restart: unless-stopped
